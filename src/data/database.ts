@@ -12,6 +12,11 @@ export async function getWorkout(db: SQLiteDatabase, id: number): Promise<Workou
   return { ...workout, exercises: [...grouped.values()] };
 }
 export async function getExercises(db: SQLiteDatabase) { return db.getAllAsync<Exercise>('SELECT * FROM exercises ORDER BY is_custom, name'); }
+export async function getLastWorkoutSets(db: SQLiteDatabase, exerciseId: number, excludeWorkoutId?: number) {
+  const lastWorkout = await db.getFirstAsync<{ id: number }>(`SELECT w.id FROM workouts w JOIN workout_exercises we ON we.workout_id = w.id WHERE we.exercise_id = ? AND (? IS NULL OR w.id != ?) ORDER BY w.performed_at DESC, w.created_at DESC, w.id DESC LIMIT 1`, exerciseId, excludeWorkoutId ?? null, excludeWorkoutId ?? null);
+  if (!lastWorkout) return [];
+  return db.getAllAsync<{ weight: number; reps: number }>(`SELECT s.weight, s.reps FROM sets s JOIN workout_exercises we ON we.id = s.workout_exercise_id WHERE we.workout_id = ? AND we.exercise_id = ? ORDER BY s.set_number`, lastWorkout.id, exerciseId);
+}
 export async function saveWorkout(db: SQLiteDatabase, input: { id?: number; name: string; date: string; note: string; exercises: { id?: number; name: string; sets: { weight: number; reps: number }[] }[] }) {
   await db.withExclusiveTransactionAsync(async (tx) => {
     let workoutId = input.id;
