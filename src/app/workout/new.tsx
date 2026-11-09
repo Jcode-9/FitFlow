@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Alert, Pressable, Text, View } from 'react-native';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 import { Action, Card, EmptyState, Field, Heading, Page, SectionTitle } from '@/components/ui/primitives';
 import { palette as c } from '@/constants/app-theme';
 import { getExercises, getLastWorkoutSets, getWorkout, saveWorkout, type Exercise } from '@/data/database';
 
 type PreviousSet = { weight: number; reps: number };
-type DraftExercise = { id?: number; name: string; previousSets: PreviousSet[]; sets: { weight: string; reps: string }[] };
+type DraftExercise = { key: string; id?: number; name: string; previousSets: PreviousSet[]; sets: { weight: string; reps: string }[] };
+const newDraftKey = () => `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const localDate = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; };
 const defaultWorkoutName = (date: string) => `Trening siłowy - ${date.split('-').reverse().join('.')}`;
 
@@ -24,6 +26,7 @@ export default function WorkoutForm() {
       if (!active || !workout) return;
       setDate(workout.performed_at); setName(workout.name); setNameEdited(workout.name !== defaultWorkoutName(workout.performed_at)); setNote(workout.note ?? '');
       const exercises = await Promise.all(workout.exercises.map(async (exercise) => ({
+        key: `exercise-${exercise.id}`,
         id: exercise.id,
         name: exercise.name,
         previousSets: await getLastWorkoutSets(db, exercise.id, Number(id)),
@@ -36,7 +39,7 @@ export default function WorkoutForm() {
 
   const addExercise = async (exercise: Exercise) => {
     if (drafts.some((draft) => draft.id === exercise.id)) return;
-    setDrafts((current) => [...current, { id: exercise.id, name: exercise.name, previousSets: [], sets: [{ weight: '', reps: '' }] }]);
+    setDrafts((current) => [...current, { key: `exercise-${exercise.id}`, id: exercise.id, name: exercise.name, previousSets: [], sets: [{ weight: '', reps: '' }] }]);
     try {
       const previousSets = await getLastWorkoutSets(db, exercise.id, id ? Number(id) : undefined);
       setDrafts((current) => current.map((draft) => draft.id === exercise.id ? { ...draft, previousSets } : draft));
@@ -48,7 +51,7 @@ export default function WorkoutForm() {
     if (drafts.some((item) => item.name.toLocaleLowerCase() === value.toLocaleLowerCase())) { setCustomName(''); return; }
     const existing = library.find((exercise) => exercise.name.toLocaleLowerCase('pl-PL') === value.toLocaleLowerCase('pl-PL'));
     if (existing) { void addExercise(existing); setCustomName(''); return; }
-    setDrafts((current) => [...current, { name: value, previousSets: [], sets: [{ weight: '', reps: '' }] }]); setCustomName('');
+    setDrafts((current) => [...current, { key: newDraftKey(), name: value, previousSets: [], sets: [{ weight: '', reps: '' }] }]); setCustomName('');
   };
   const updateSet = (exerciseIndex: number, setIndex: number, key: 'weight' | 'reps', value: string) => setDrafts((items) => items.map((item, i) => i === exerciseIndex ? { ...item, sets: item.sets.map((set, j) => j === setIndex ? { ...set, [key]: value.replace(',', '.') } : set) } : item));
   const removeSet = (exerciseIndex: number, setIndex: number) => setDrafts((items) => items.flatMap((item, i) => {
@@ -84,14 +87,38 @@ export default function WorkoutForm() {
       }) : <EmptyState title="Brak wyników" body="Sprawdź pisownię albo dodaj własne ćwiczenie poniżej." />}
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field label="Własne ćwiczenie" value={customName} onChangeText={setCustomName} placeholder="np. Wznosy bokiem" style={{ flex: 1 }} returnKeyType="done" onSubmitEditing={addCustom} /><Action label="Dodaj" secondary onPress={addCustom} /></View>
     </View>
-    {drafts.map((exercise, i) => <Card key={`${exercise.id ?? exercise.name}-${i}`}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: c.text, fontSize: 16, fontWeight: '700', flex: 1 }}>{exercise.name}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Usuń ćwiczenie ${exercise.name}`} onPress={() => setDrafts((current) => current.filter((_, index) => index !== i))}><Text style={{ color: c.danger }}>Usuń</Text></Pressable></View>
-      {exercise.sets.map((set, j) => <View key={j} style={{ gap: 5 }}>
-        {exercise.previousSets[j] ? <Text accessibilityLabel={`Podpowiedź: ${exercise.previousSets[j].weight} kilogramów, ${exercise.previousSets[j].reps} powtórzeń`} style={{ color: c.accent, fontSize: 12, fontWeight: '700', paddingLeft: 2 }}>Ostatnio: {exercise.previousSets[j].weight.toLocaleString('pl-PL')} kg × {exercise.previousSets[j].reps} powt.</Text> : null}
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field style={{ flex: 1 }} label={`Seria ${j + 1} · kg`} value={set.weight} onChangeText={(value) => updateSet(i, j, 'weight', value)} keyboardType="decimal-pad" placeholder="0" /><Field style={{ flex: 1 }} label="Powtórzenia" value={set.reps} onChangeText={(value) => updateSet(i, j, 'reps', value)} keyboardType="number-pad" placeholder="8" /><Pressable accessibilityRole="button" accessibilityLabel={`Usuń serię ${j + 1} ćwiczenia ${exercise.name}`} onPress={() => removeSet(i, j)} hitSlop={8} style={{ padding: 12, marginBottom: 2 }}><Text style={{ color: c.danger, fontSize: 18 }}>×</Text></Pressable></View>
-      </View>)}
-      <Action label="＋ Dodaj serię" secondary onPress={() => setDrafts((items) => items.map((item, index) => index === i ? { ...item, sets: [...item.sets, { weight: '', reps: '' }] } : item))} />
-    </Card>)}
+    {drafts.length ? <View style={{ gap: 8 }}>
+      <Text style={{ color: c.muted, fontSize: 13 }}>Przytrzymaj uchwyt i przeciągnij kafelek, aby zmienić kolejność.</Text>
+      <DraggableFlatList
+        data={drafts}
+        keyExtractor={(exercise) => exercise.key}
+        onDragEnd={({ data }) => setDrafts(data)}
+        activationDistance={8}
+        autoscrollThreshold={72}
+        scrollEnabled={false}
+        nestedScrollEnabled
+        initialNumToRender={drafts.length}
+        containerStyle={{ flexGrow: 0 }}
+        contentContainerStyle={{ gap: 12 }}
+        renderItem={({ item: exercise, getIndex, drag, isActive }) => {
+          const exerciseIndex = getIndex() ?? 0;
+          return <ScaleDecorator>
+            <Card style={isActive ? { borderColor: c.accent, opacity: 0.9, transform: [{ scale: 1.02 }] } : undefined}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Przesuń ćwiczenie ${exercise.name}`} accessibilityHint="Przytrzymaj uchwyt i przeciągnij kafelek w nowe miejsce." onLongPress={drag} delayLongPress={180} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: c.surfaceRaised }}><Text style={{ color: c.muted, fontSize: 20 }}>⠿</Text></Pressable>
+                <Text style={{ color: c.text, fontSize: 16, fontWeight: '700', flex: 1 }}>{exercise.name}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Usuń ćwiczenie ${exercise.name}`} onPress={() => setDrafts((current) => current.filter((item) => item.key !== exercise.key))}><Text style={{ color: c.danger }}>Usuń</Text></Pressable>
+              </View>
+              {exercise.sets.map((set, j) => <View key={j} style={{ gap: 5 }}>
+                {exercise.previousSets[j] ? <Text accessibilityLabel={`Podpowiedź: ${exercise.previousSets[j].weight} kilogramów, ${exercise.previousSets[j].reps} powtórzeń`} style={{ color: c.accent, fontSize: 12, fontWeight: '700', paddingLeft: 2 }}>Ostatnio: {exercise.previousSets[j].weight.toLocaleString('pl-PL')} kg × {exercise.previousSets[j].reps} powt.</Text> : null}
+                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field style={{ flex: 1 }} label={`Seria ${j + 1} · kg`} value={set.weight} onChangeText={(value) => updateSet(exerciseIndex, j, 'weight', value)} keyboardType="decimal-pad" placeholder="0" /><Field style={{ flex: 1 }} label="Powtórzenia" value={set.reps} onChangeText={(value) => updateSet(exerciseIndex, j, 'reps', value)} keyboardType="number-pad" placeholder="8" /><Pressable accessibilityRole="button" accessibilityLabel={`Usuń serię ${j + 1} ćwiczenia ${exercise.name}`} onPress={() => removeSet(exerciseIndex, j)} hitSlop={8} style={{ padding: 12, marginBottom: 2 }}><Text style={{ color: c.danger, fontSize: 18 }}>×</Text></Pressable></View>
+              </View>)}
+              <Action label="＋ Dodaj serię" secondary onPress={() => setDrafts((items) => items.map((item) => item.key === exercise.key ? { ...item, sets: [...item.sets, { weight: '', reps: '' }] } : item))} />
+            </Card>
+          </ScaleDecorator>;
+        }}
+      />
+    </View> : null}
     <Field label="Notatka (opcjonalnie)" value={note} onChangeText={setNote} placeholder="Jak się czułeś?" multiline numberOfLines={3} />
     <Action label={saving ? 'Zapisywanie…' : id ? 'Zapisz zmiany' : 'Zapisz trening'} onPress={save} disabled={saving} />
   </Page>;
