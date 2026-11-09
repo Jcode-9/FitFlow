@@ -25,7 +25,7 @@ export default function JournalScreen() {
   const [latest, ...older] = workouts;
   return <Page><Heading eyebrow="FitFlow · dziennik" title="Twój trening." subtitle="Zapisuj swoje serie. Postępy zostają z Tobą, także offline." />
     <Action label="＋  Zapisz trening" onPress={() => router.push('/workout/new')} />
-    <Action label="Szablony treningów" secondary onPress={() => router.push('/templates/index')} />
+    <Action label="Szablony treningów" secondary onPress={() => router.push('/templates')} />
     {error ? <EmptyState title="Wystąpił problem" body={error} /> : latest ? <WorkoutCard workout={latest} featured /> : <EmptyState title="Pierwszy trening czeka" body="Dodaj ćwiczenia, serie, ciężar i powtórzenia. Wszystko zapisze się na tym urządzeniu." />}
     {older.length > 0 ? <View style={{ gap: 12 }}><SectionTitle title="Wcześniejsze treningi" />{older.map((workout) => <WorkoutCard key={workout.id} workout={workout} />)}</View> : null}
   </Page>;

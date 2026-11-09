@@ -80,8 +80,8 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="workout/new" options={{ presentation: 'modal', headerShown: true, title: 'Nowy trening' }} />
             <Stack.Screen name="workout/[id]" options={{ headerShown: true, title: 'Szczegóły treningu' }} />
-            <Stack.Screen name="templates/index" options={{ headerShown: true, title: 'Szablony treningów' }} />
-            <Stack.Screen name="templates/edit" options={{ headerShown: true, title: 'Edytuj szablon' }} />
+            <Stack.Screen name="templates" options={{ headerShown: true, title: 'Szablony treningów' }} />
+            <Stack.Screen name="template-edit" options={{ headerShown: true, title: 'Edytuj szablon' }} />
           </Stack>
         </ThemeProvider>
       </SQLiteProvider>
