@@ -16,6 +16,12 @@ async function migrateDatabase(db: SQLiteDatabase) {
       PRAGMA user_version = 1;
     `);
   }
+  const current = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  if ((current?.user_version ?? 0) < 2) {
+    await db.execAsync(`ALTER TABLE workouts ADD COLUMN name TEXT NOT NULL DEFAULT 'Trening siłowy';`);
+    await db.runAsync("UPDATE workouts SET name = 'Trening siłowy - ' || substr(performed_at, 9, 2) || '.' || substr(performed_at, 6, 2) || '.' || substr(performed_at, 1, 4)");
+    await db.execAsync('PRAGMA user_version = 2;');
+  }
 }
 
 export default function RootLayout() {

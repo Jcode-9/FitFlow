@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { palette as c } from '@/constants/app-theme';
 
-export function Page({ children }: PropsWithChildren) { return <SafeAreaView style={s.safe}><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled">{children}</ScrollView></SafeAreaView>; }
+export function Page({ children }: PropsWithChildren) { return <SafeAreaView style={s.safe}><KeyboardAvoidingView style={{ flex: 1 }} behavior="padding"><ScrollView contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">{children}</ScrollView></KeyboardAvoidingView></SafeAreaView>; }
 export function Heading({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) { return <View style={s.heading}>{eyebrow ? <Text style={s.eyebrow}>{eyebrow.toUpperCase()}</Text> : null}<Text accessibilityRole="header" style={s.title}>{title}</Text>{subtitle ? <Text style={s.subtitle}>{subtitle}</Text> : null}</View>; }
 export function Card({ children, style }: PropsWithChildren<{ style?: object }>) { return <View style={[s.card, style]}>{children}</View>; }
 export function Action({ label, onPress, secondary, disabled }: { label: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) { return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} disabled={disabled} style={({ pressed }) => [s.action, secondary && s.actionSecondary, disabled && s.disabled, pressed && !disabled && s.pressed]}><Text style={[s.actionText, secondary && s.actionTextSecondary]}>{label}</Text></Pressable>; }
