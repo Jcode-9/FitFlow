@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Alert, Pressable, Text, View } from 'react-native';
+import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 import { Action, Card, EmptyState, Field, Heading, Page, SectionTitle } from '@/components/ui/primitives';
 import { palette as c } from '@/constants/app-theme';
@@ -15,6 +16,7 @@ const defaultWorkoutName = (date: string) => `Trening siłowy - ${date.split('-'
 
 export default function WorkoutForm() {
   const db = useSQLiteContext(); const { id } = useLocalSearchParams<{ id?: string }>();
+  const scrollableRef = useAnimatedRef<Animated.ScrollView>();
   const [library, setLibrary] = useState<Exercise[]>([]); const [search, setSearch] = useState('');
   const [date, setDate] = useState(localDate); const [name, setName] = useState(() => defaultWorkoutName(localDate())); const [nameEdited, setNameEdited] = useState(false);
   const [note, setNote] = useState(''); const [drafts, setDrafts] = useState<DraftExercise[]>([]); const [customName, setCustomName] = useState(''); const [saving, setSaving] = useState(false);
@@ -75,7 +77,7 @@ export default function WorkoutForm() {
     finally { setSaving(false); }
   };
 
-  return <Page>
+  return <Page scrollableRef={scrollableRef}>
     <Heading eyebrow={id ? 'Edycja' : 'Nowy trening'} title={id ? 'Popraw zapis.' : 'Zaczynamy.'} subtitle="Uzupełnij nazwę, datę, ćwiczenia i serie." />
     <Field label="Nazwa treningu" value={name} onChangeText={(value) => { setName(value); setNameEdited(value.trim() !== defaultWorkoutName(date)); }} placeholder={defaultWorkoutName(date)} returnKeyType="done" />
     <Field label="Data · RRRR-MM-DD" value={date} onChangeText={(value) => { setDate(value); if (!nameEdited) setName(defaultWorkoutName(value)); }} placeholder="2026-11-09" keyboardType="numbers-and-punctuation" />
@@ -103,6 +105,9 @@ export default function WorkoutForm() {
         activeItemScale={1.03}
         dimensionsAnimationType="worklet"
         itemsLayoutTransitionMode="all"
+        scrollableRef={scrollableRef}
+        autoScrollActivationOffset={110}
+        autoScrollMaxVelocity={700}
         onDragEnd={({ order }) => setDrafts((current) => order(current))}
       >
         {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: exerciseListWidth || '100%' }}>

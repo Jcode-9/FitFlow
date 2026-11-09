@@ -1,10 +1,27 @@
-import type { PropsWithChildren } from 'react';
+import { forwardRef, useCallback, useMemo, type ComponentProps, type PropsWithChildren } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import Animated, { type AnimatedRef } from 'react-native-reanimated';
 import { palette as c } from '@/constants/app-theme';
 
-export function Page({ children }: PropsWithChildren) { return <SafeAreaView style={s.safe}><KeyboardAwareScrollView style={s.scroll} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={28} extraKeyboardSpace={32}>{children}</KeyboardAwareScrollView></SafeAreaView>; }
+function createSortableScrollView(scrollableRef: AnimatedRef<Animated.ScrollView>) {
+  return forwardRef<Animated.ScrollView, ComponentProps<typeof Animated.ScrollView>>(function SortableScrollView(props, keyboardControllerRef) {
+    const attachRefs = useCallback((scrollView: Animated.ScrollView | null) => {
+      if (typeof keyboardControllerRef === 'function') keyboardControllerRef(scrollView);
+      else if (keyboardControllerRef) (keyboardControllerRef as { current: Animated.ScrollView | null }).current = scrollView;
+      scrollableRef(scrollView);
+    }, [keyboardControllerRef]);
+
+    return <Animated.ScrollView {...props} ref={attachRefs} />;
+  });
+}
+
+export function Page({ children, scrollableRef }: PropsWithChildren<{ scrollableRef?: AnimatedRef<Animated.ScrollView> }>) {
+  const ScrollViewComponent = useMemo(() => scrollableRef ? createSortableScrollView(scrollableRef) : undefined, [scrollableRef]);
+
+  return <SafeAreaView style={s.safe}><KeyboardAwareScrollView ScrollViewComponent={ScrollViewComponent} style={s.scroll} contentContainerStyle={s.page} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" bottomOffset={28} extraKeyboardSpace={32}>{children}</KeyboardAwareScrollView></SafeAreaView>;
+}
 export function Heading({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) { return <View style={s.heading}>{eyebrow ? <Text style={s.eyebrow}>{eyebrow.toUpperCase()}</Text> : null}<Text accessibilityRole="header" style={s.title}>{title}</Text>{subtitle ? <Text style={s.subtitle}>{subtitle}</Text> : null}</View>; }
 export function Card({ children, style }: PropsWithChildren<{ style?: object }>) { return <View style={[s.card, style]}>{children}</View>; }
 export function Action({ label, onPress, secondary, disabled }: { label: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) { return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} disabled={disabled} style={({ pressed }) => [s.action, secondary && s.actionSecondary, disabled && s.disabled, pressed && !disabled && s.pressed]}><Text style={[s.actionText, secondary && s.actionTextSecondary]}>{label}</Text></Pressable>; }
