@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { Alert, Pressable, Text, View } from 'react-native';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import Sortable from 'react-native-sortables';
 import { Action, Card, EmptyState, Field, Heading, Page, SectionTitle } from '@/components/ui/primitives';
 import { palette as c } from '@/constants/app-theme';
 import { getExercises, getLastWorkoutSets, getWorkout, saveWorkout, type Exercise } from '@/data/database';
@@ -89,35 +89,30 @@ export default function WorkoutForm() {
     </View>
     {drafts.length ? <View style={{ gap: 8 }}>
       <Text style={{ color: c.muted, fontSize: 13 }}>Przytrzymaj uchwyt i przeciągnij kafelek, aby zmienić kolejność.</Text>
-      <DraggableFlatList
-        data={drafts}
-        keyExtractor={(exercise) => exercise.key}
-        onDragEnd={({ data }) => setDrafts(data)}
-        activationDistance={8}
-        autoscrollThreshold={72}
-        scrollEnabled={false}
-        nestedScrollEnabled
-        initialNumToRender={drafts.length}
-        containerStyle={{ flexGrow: 0 }}
-        contentContainerStyle={{ gap: 12 }}
-        renderItem={({ item: exercise, getIndex, drag, isActive }) => {
-          const exerciseIndex = getIndex() ?? 0;
-          return <ScaleDecorator>
-            <Card style={isActive ? { borderColor: c.accent, opacity: 0.9, transform: [{ scale: 1.02 }] } : undefined}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Przesuń ćwiczenie ${exercise.name}`} accessibilityHint="Przytrzymaj uchwyt i przeciągnij kafelek w nowe miejsce." onLongPress={drag} delayLongPress={180} style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: c.surfaceRaised }}><Text style={{ color: c.muted, fontSize: 20 }}>⠿</Text></Pressable>
-                <Text style={{ color: c.text, fontSize: 16, fontWeight: '700', flex: 1 }}>{exercise.name}</Text>
-                <Pressable accessibilityRole="button" accessibilityLabel={`Usuń ćwiczenie ${exercise.name}`} onPress={() => setDrafts((current) => current.filter((item) => item.key !== exercise.key))}><Text style={{ color: c.danger }}>Usuń</Text></Pressable>
-              </View>
-              {exercise.sets.map((set, j) => <View key={j} style={{ gap: 5 }}>
-                {exercise.previousSets[j] ? <Text accessibilityLabel={`Podpowiedź: ${exercise.previousSets[j].weight} kilogramów, ${exercise.previousSets[j].reps} powtórzeń`} style={{ color: c.accent, fontSize: 12, fontWeight: '700', paddingLeft: 2 }}>Ostatnio: {exercise.previousSets[j].weight.toLocaleString('pl-PL')} kg × {exercise.previousSets[j].reps} powt.</Text> : null}
-                <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field style={{ flex: 1 }} label={`Seria ${j + 1} · kg`} value={set.weight} onChangeText={(value) => updateSet(exerciseIndex, j, 'weight', value)} keyboardType="decimal-pad" placeholder="0" /><Field style={{ flex: 1 }} label="Powtórzenia" value={set.reps} onChangeText={(value) => updateSet(exerciseIndex, j, 'reps', value)} keyboardType="number-pad" placeholder="8" /><Pressable accessibilityRole="button" accessibilityLabel={`Usuń serię ${j + 1} ćwiczenia ${exercise.name}`} onPress={() => removeSet(exerciseIndex, j)} hitSlop={8} style={{ padding: 12, marginBottom: 2 }}><Text style={{ color: c.danger, fontSize: 18 }}>×</Text></Pressable></View>
-              </View>)}
-              <Action label="＋ Dodaj serię" secondary onPress={() => setDrafts((items) => items.map((item) => item.key === exercise.key ? { ...item, sets: [...item.sets, { weight: '', reps: '' }] } : item))} />
-            </Card>
-          </ScaleDecorator>;
-        }}
-      />
+      <Sortable.Flex
+        flexDirection="column"
+        alignItems="flex-start"
+        width="fill"
+        gap={12}
+        customHandle
+        dragActivationDelay={180}
+        onDragEnd={({ order }) => setDrafts((current) => order(current))}
+      >
+        {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: '100%' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Sortable.Handle style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: c.surfaceRaised }}>
+              <View accessible accessibilityRole="button" accessibilityLabel={`Przesuń ćwiczenie ${exercise.name}`} accessibilityHint="Przytrzymaj uchwyt i przeciągnij kafelek w nowe miejsce."><Text style={{ color: c.muted, fontSize: 20 }}>⠿</Text></View>
+            </Sortable.Handle>
+            <Text style={{ color: c.text, fontSize: 16, fontWeight: '700', flex: 1 }}>{exercise.name}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel={`Usuń ćwiczenie ${exercise.name}`} onPress={() => setDrafts((current) => current.filter((item) => item.key !== exercise.key))}><Text style={{ color: c.danger }}>Usuń</Text></Pressable>
+          </View>
+          {exercise.sets.map((set, j) => <View key={j} style={{ gap: 5 }}>
+            {exercise.previousSets[j] ? <Text accessibilityLabel={`Podpowiedź: ${exercise.previousSets[j].weight} kilogramów, ${exercise.previousSets[j].reps} powtórzeń`} style={{ color: c.accent, fontSize: 12, fontWeight: '700', paddingLeft: 2 }}>Ostatnio: {exercise.previousSets[j].weight.toLocaleString('pl-PL')} kg × {exercise.previousSets[j].reps} powt.</Text> : null}
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field style={{ flex: 1 }} label={`Seria ${j + 1} · kg`} value={set.weight} onChangeText={(value) => updateSet(exerciseIndex, j, 'weight', value)} keyboardType="decimal-pad" placeholder="0" /><Field style={{ flex: 1 }} label="Powtórzenia" value={set.reps} onChangeText={(value) => updateSet(exerciseIndex, j, 'reps', value)} keyboardType="number-pad" placeholder="8" /><Pressable accessibilityRole="button" accessibilityLabel={`Usuń serię ${j + 1} ćwiczenia ${exercise.name}`} onPress={() => removeSet(exerciseIndex, j)} hitSlop={8} style={{ padding: 12, marginBottom: 2 }}><Text style={{ color: c.danger, fontSize: 18 }}>×</Text></Pressable></View>
+          </View>)}
+          <Action label="＋ Dodaj serię" secondary onPress={() => setDrafts((items) => items.map((item) => item.key === exercise.key ? { ...item, sets: [...item.sets, { weight: '', reps: '' }] } : item))} />
+        </Card>)}
+      </Sortable.Flex>
     </View> : null}
     <Field label="Notatka (opcjonalnie)" value={note} onChangeText={setNote} placeholder="Jak się czułeś?" multiline numberOfLines={3} />
     <Action label={saving ? 'Zapisywanie…' : id ? 'Zapisz zmiany' : 'Zapisz trening'} onPress={save} disabled={saving} />
