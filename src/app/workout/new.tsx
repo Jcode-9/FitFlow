@@ -92,6 +92,7 @@ export default function WorkoutForm() {
       <Text style={{ color: c.muted, fontSize: 13 }}>Przytrzymaj uchwyt i przeciągnij kafelek, aby zmienić kolejność.</Text>
       <Sortable.Flex
         flexDirection="column"
+        flexWrap="nowrap"
         alignItems="flex-start"
         width={exerciseListWidth || 'fill'}
         gap={12}
@@ -100,9 +101,11 @@ export default function WorkoutForm() {
         reorderTriggerOrigin="touch"
         inactiveItemScale={0.88}
         activeItemScale={1.03}
+        dimensionsAnimationType="worklet"
+        itemsLayoutTransitionMode="all"
         onDragEnd={({ order }) => setDrafts((current) => order(current))}
       >
-        {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: '100%' }}>
+        {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: exerciseListWidth || '100%' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Sortable.Handle style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: c.surfaceRaised }}>
               <View accessible accessibilityRole="button" accessibilityLabel={`Przesuń ćwiczenie ${exercise.name}`} accessibilityHint="Przytrzymaj uchwyt i przeciągnij kafelek w nowe miejsce."><Text style={{ color: c.muted, fontSize: 20 }}>⠿</Text></View>
