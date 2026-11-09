@@ -28,10 +28,11 @@ Serwer używa API zgodnego z formatem OpenAI Chat Completions. Uruchom go z Node
 $env:AI_API_URL = "https://adres-dostawcy/v1"
 $env:AI_API_KEY = "wstaw-klucz-lokalnie"
 $env:AI_MODEL = "nazwa-modelu"
+$env:AI_MONTHLY_REQUEST_LIMIT = "ustalony-limit-zapytań"
 node --experimental-strip-types server/index.ts
 ```
 
-Ustaw `EXPO_PUBLIC_AI_API_URL` na adres serwera osiągalny z telefonu, np. `http://192.168.1.10:8787`, i uruchom ponownie Expo. Nie commituj kluczy. Sugestie są dobrowolne; przed zapytaniem aplikacja informuje o wysłaniu podsumowania bez danych osobowych. Serwer ogranicza rozmiar i częstotliwość zapytań.
+Ustaw `EXPO_PUBLIC_AI_API_URL` na adres serwera osiągalny z telefonu, np. `http://192.168.1.10:8787`, i uruchom ponownie Expo. Nie commituj kluczy. Ustal limit zapytań na podstawie bieżącego cennika dostawcy tak, aby nie przekroczyć budżetu 30 zł miesięcznie. Serwer trwale zapisuje licznik lokalnie i odmawia kolejnych zapytań po osiągnięciu limitu. Do limitu wlicza też nieudane próby połączenia z dostawcą. Używaj jednej instancji serwera, ponieważ licznik budżetu jest lokalnym plikiem. Sugestie są dobrowolne; przed zapytaniem aplikacja informuje o wysłaniu podsumowania bez danych osobowych. Serwer ogranicza rozmiar, częstotliwość i miesięczną liczbę zapytań.
 
 ## Struktura
 
