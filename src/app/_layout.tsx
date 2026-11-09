@@ -1,5 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { useColorScheme } from 'react-native';
 
 async function migrateDatabase(db: SQLiteDatabase) {
@@ -26,13 +27,15 @@ async function migrateDatabase(db: SQLiteDatabase) {
 
 export default function RootLayout() {
   const scheme = useColorScheme();
-  return <SQLiteProvider databaseName="fitflow.db" onInit={migrateDatabase}>
-    <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="workout/new" options={{ presentation: 'modal', headerShown: true, title: 'Nowy trening' }} />
-        <Stack.Screen name="workout/[id]" options={{ headerShown: true, title: 'Szczegóły treningu' }} />
-      </Stack>
-    </ThemeProvider>
-  </SQLiteProvider>;
+  return <KeyboardProvider>
+    <SQLiteProvider databaseName="fitflow.db" onInit={migrateDatabase}>
+      <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="workout/new" options={{ presentation: 'modal', headerShown: true, title: 'Nowy trening' }} />
+          <Stack.Screen name="workout/[id]" options={{ headerShown: true, title: 'Szczegóły treningu' }} />
+        </Stack>
+      </ThemeProvider>
+    </SQLiteProvider>
+  </KeyboardProvider>;
 }
