@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedRef } from 'react-native-reanimated';
 import Sortable from 'react-native-sortables';
 import { Action, Card, EmptyState, Field, Heading, Page, SectionTitle } from '@/components/ui/primitives';
@@ -16,12 +16,13 @@ const defaultWorkoutName = (date: string) => `Trening siłowy - ${date.split('-'
 const blankSets = (count = 1): DraftSet[] => Array.from({ length: count }, () => ({ weight: '', reps: '8' }));
 
 export default function WorkoutForm() {
-  const db = useSQLiteContext(); const { id } = useLocalSearchParams<{ id?: string }>();
+  const db = useSQLiteContext(); const { id } = useLocalSearchParams<{ id?: string }>(); const { width: screenWidth } = useWindowDimensions();
   const scrollableRef = useAnimatedRef<Animated.ScrollView>();
   const [library, setLibrary] = useState<Exercise[]>([]); const [search, setSearch] = useState('');
   const [date, setDate] = useState(localDate); const [name, setName] = useState(() => defaultWorkoutName(localDate())); const [nameEdited, setNameEdited] = useState(false);
   const [note, setNote] = useState(''); const [drafts, setDrafts] = useState<DraftExercise[]>([]); const [customName, setCustomName] = useState(''); const [saving, setSaving] = useState(false);
-  const [exerciseListWidth, setExerciseListWidth] = useState(0); const [templates, setTemplates] = useState<{id:number;name:string;exercise_count:number}[]>([]); const [showTemplates, setShowTemplates] = useState(false);
+  const [templates, setTemplates] = useState<{id:number;name:string;exercise_count:number}[]>([]); const [showTemplates, setShowTemplates] = useState(false);
+  const exerciseCardWidth = Math.max(screenWidth - 44, 0);
 
   useEffect(() => {
     let active = true;
@@ -96,10 +97,10 @@ export default function WorkoutForm() {
       }) : <EmptyState title="Brak wyników" body="Sprawdź pisownię albo dodaj własne ćwiczenie poniżej." />}
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field label="Własne ćwiczenie" value={customName} onChangeText={setCustomName} placeholder="np. Wznosy bokiem" style={{ flex: 1 }} returnKeyType="done" onSubmitEditing={addCustom} /><Action label="Dodaj" secondary onPress={addCustom} /></View>
     </View>
-    {drafts.length ? <View style={{ gap: 8, alignSelf: 'stretch' }} onLayout={({ nativeEvent: { layout } }) => setExerciseListWidth((current) => current === layout.width ? current : layout.width)}>
+    {drafts.length ? <View style={{ gap: 8, alignSelf: 'stretch', width: exerciseCardWidth }}>
       <Text style={{ color: c.muted, fontSize: 13 }}>Przytrzymaj uchwyt i przeciągnij kafelek, aby zmienić kolejność.</Text>
-      <Sortable.Flex flexDirection="column" flexWrap="nowrap" alignItems="flex-start" width={exerciseListWidth || 'fill'} gap={12} customHandle dragActivationDelay={180} reorderTriggerOrigin="touch" inactiveItemScale={0.88} activeItemScale={1.03} dimensionsAnimationType="worklet" itemsLayoutTransitionMode="all" scrollableRef={scrollableRef} autoScrollActivationOffset={110} autoScrollMaxVelocity={700} onDragEnd={({ order }) => setDrafts((current) => order(current))}>
-        {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: '100%' }}>
+      <Sortable.Flex flexDirection="column" flexWrap="nowrap" alignItems="flex-start" width={exerciseCardWidth} gap={12} customHandle dragActivationDelay={180} reorderTriggerOrigin="touch" inactiveItemScale={0.88} activeItemScale={1.03} dimensionsAnimationType="worklet" itemsLayoutTransitionMode="all" scrollableRef={scrollableRef} autoScrollActivationOffset={110} autoScrollMaxVelocity={700} onDragEnd={({ order }) => setDrafts((current) => order(current))}>
+        {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: exerciseCardWidth }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><Sortable.Handle style={{ minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: c.surfaceRaised }}><View accessible accessibilityRole="button" accessibilityLabel={`Przesuń ćwiczenie ${exercise.name}`}><Text style={{ color: c.muted, fontSize: 20 }}>⠿</Text></View></Sortable.Handle><Text style={{ color: c.text, fontSize: 16, fontWeight: '700', flex: 1 }}>{exercise.name}</Text><Pressable accessibilityRole="button" accessibilityLabel={`Usuń ćwiczenie ${exercise.name}`} onPress={() => setDrafts((current) => current.filter((item) => item.key !== exercise.key))}><Text style={{ color: c.danger }}>Usuń</Text></Pressable></View>
           <View accessibilityRole="radiogroup" accessibilityLabel={`Tryb wpisu dla ${exercise.name}`} style={{ flexDirection: 'row', gap: 8 }}>
             {(['weight','note'] as EntryMode[]).map((mode) => <Pressable key={mode} accessibilityRole="radio" accessibilityState={{ checked: exercise.mode === mode }} accessibilityLabel={mode === 'weight' ? 'Ciężar' : 'Notatka'} onPress={() => updateExercise(exercise.key, { mode })} style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 18, backgroundColor: exercise.mode === mode ? c.accent : c.surfaceRaised }}><Text style={{ color: exercise.mode === mode ? c.background : c.text, fontWeight: '700' }}>{mode === 'weight' ? 'Ciężar' : 'Notatka'}</Text></Pressable>)}
@@ -107,7 +108,7 @@ export default function WorkoutForm() {
           {exercise.mode === 'note' ? <>{exercise.previousNote ? <Text accessibilityLabel={`Ostatnia notatka: ${exercise.previousNote}`} style={{ color: c.accent, fontSize: 13, fontWeight: '700' }}>Ostatnio: {exercise.previousNote}</Text> : null}<Field label="Notatka do ćwiczenia" value={exercise.note} onChangeText={(value) => updateExercise(exercise.key, { note: value })} placeholder="np. RPE 8, spokojne tempo…" multiline /></> : null}
           {exercise.sets.map((set, j) => <View key={j} style={{ gap: 5 }}>
             {exercise.mode === 'weight' && exercise.previousWeights[j] !== undefined && exercise.previousWeights[j] !== null ? <Text style={{ color: c.accent, fontSize: 12, fontWeight: '700', paddingLeft: 2 }}>Ostatnio: {exercise.previousWeights[j]} kg</Text> : null}
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>{exercise.mode === 'weight' ? <Field style={{ flex: 1 }} label={`Seria ${j + 1} · kg`} value={set.weight} onChangeText={(value) => updateSet(exerciseIndex, j, 'weight', value)} keyboardType="decimal-pad" placeholder="0" /> : <Text accessibilityRole="text" style={{ color: c.muted, flex: 1, paddingBottom: 15 }}>Seria {j + 1}</Text>}
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>{exercise.mode === 'weight' ? <Field style={{ flex: 1 }} label={`Seria ${j + 1} · kg`} value={set.weight} onChangeText={(value) => updateSet(exerciseIndex, j, 'weight', value)} keyboardType="decimal-pad" placeholder="0" /> : <Text accessibilityRole="text" style={{ color: c.muted, flex: 1, paddingTop: 32 }}>Seria {j + 1}</Text>}
               <View style={{ flex: 1 }}><Field label="Powtórzenia" value={set.reps} onChangeText={(value) => updateSet(exerciseIndex, j, 'reps', value)} keyboardType="number-pad" placeholder="8" /><View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}><Pressable accessibilityRole="button" accessibilityLabel={`Zmniejsz liczbę powtórzeń w serii ${j + 1}`} onPress={() => updateSet(exerciseIndex, j, 'reps', String(Math.max(1, (Number(set.reps) || 1) - 1)))} style={{ flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.surfaceRaised }}><Text style={{ color: c.text, fontSize: 20 }}>−</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`Zwiększ liczbę powtórzeń w serii ${j + 1}`} onPress={() => updateSet(exerciseIndex, j, 'reps', String((Number(set.reps) || 0) + 1))} style={{ flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: c.surfaceRaised }}><Text style={{ color: c.text, fontSize: 20 }}>+</Text></Pressable></View></View>
               <Pressable accessibilityRole="button" accessibilityLabel={`Usuń serię ${j + 1} ćwiczenia ${exercise.name}`} onPress={() => removeSet(exerciseIndex, j)} hitSlop={8} style={{ padding: 12, marginBottom: 2 }}><Text style={{ color: c.danger, fontSize: 18 }}>×</Text></Pressable>
             </View>
