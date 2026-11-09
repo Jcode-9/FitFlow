@@ -1,5 +1,16 @@
 # FitFlow
 
-Aplikacja do zapisywania treningów siłowych.
+Minimalny, uruchamialny szkielet aplikacji mobilnej FitFlow oparty na Expo, React Native i TypeScript.
 
-Projekt jest obecnie pustym szkieletem. Szczegółowy zakres i plan realizacji zostaną dodane w kolejnych etapach.
+## Uruchomienie
+
+Wymagany jest Node.js. Zainstaluj zależności i uruchom serwer Expo:
+
+```bash
+npm install
+npm start
+```
+
+Następnie otwórz projekt w aplikacji Expo Go na Androidzie albo uruchom emulator Androida poleceniem `npm run android`.
+
+Projekt nie zawiera jeszcze funkcji dziennika treningowego — będziemy je dodawać w kolejnych etapach.
