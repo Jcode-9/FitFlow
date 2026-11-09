@@ -18,6 +18,7 @@ export default function WorkoutForm() {
   const [library, setLibrary] = useState<Exercise[]>([]); const [search, setSearch] = useState('');
   const [date, setDate] = useState(localDate); const [name, setName] = useState(() => defaultWorkoutName(localDate())); const [nameEdited, setNameEdited] = useState(false);
   const [note, setNote] = useState(''); const [drafts, setDrafts] = useState<DraftExercise[]>([]); const [customName, setCustomName] = useState(''); const [saving, setSaving] = useState(false);
+  const [exerciseListWidth, setExerciseListWidth] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -87,15 +88,18 @@ export default function WorkoutForm() {
       }) : <EmptyState title="Brak wyników" body="Sprawdź pisownię albo dodaj własne ćwiczenie poniżej." />}
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}><Field label="Własne ćwiczenie" value={customName} onChangeText={setCustomName} placeholder="np. Wznosy bokiem" style={{ flex: 1 }} returnKeyType="done" onSubmitEditing={addCustom} /><Action label="Dodaj" secondary onPress={addCustom} /></View>
     </View>
-    {drafts.length ? <View style={{ gap: 8 }}>
+    {drafts.length ? <View style={{ gap: 8, alignSelf: 'stretch' }} onLayout={({ nativeEvent: { layout } }) => setExerciseListWidth((current) => current === layout.width ? current : layout.width)}>
       <Text style={{ color: c.muted, fontSize: 13 }}>Przytrzymaj uchwyt i przeciągnij kafelek, aby zmienić kolejność.</Text>
       <Sortable.Flex
         flexDirection="column"
         alignItems="flex-start"
-        width="fill"
+        width={exerciseListWidth || 'fill'}
         gap={12}
         customHandle
         dragActivationDelay={180}
+        reorderTriggerOrigin="touch"
+        inactiveItemScale={0.88}
+        activeItemScale={1.03}
         onDragEnd={({ order }) => setDrafts((current) => order(current))}
       >
         {drafts.map((exercise, exerciseIndex) => <Card key={exercise.key} style={{ width: '100%' }}>
