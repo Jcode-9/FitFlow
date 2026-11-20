@@ -78,6 +78,7 @@ export default function RootLayout() {
         <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="progress-history" options={{ headerShown: true, title: 'Historia treningów' }} />
             <Stack.Screen name="workout/new" options={{ presentation: 'modal', headerShown: true, title: 'Nowy trening' }} />
             <Stack.Screen name="workout/[id]" options={{ headerShown: true, title: 'Szczegóły treningu' }} />
             <Stack.Screen name="templates" options={{ headerShown: true, title: 'Szablony treningów' }} />

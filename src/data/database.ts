@@ -10,9 +10,28 @@ export type WorkoutDetail = { id: number; name: string; performed_at: string; no
 export type LastExerciseEntry = { entry_mode: EntryMode; note: string | null; sets: { weight: number | null; reps: number }[] };
 export type TemplateExercise = { id?: number; name: string; position: number; entry_mode: EntryMode; set_count: number };
 export type WorkoutTemplate = { id: number; name: string; exercises: TemplateExercise[] };
+export type MuscleWorkload = { key: MuscleKey; name: string; set_equivalents: number };
+export type MonthProgress = { workout_count: number; set_count: number; total_volume: number; workout_days: Record<string, number>; muscles: MuscleWorkload[] };
 
 export async function listWorkouts(db: SQLiteDatabase) {
   return db.getAllAsync<WorkoutSummary>(`SELECT w.id, w.name, w.performed_at, w.note, COUNT(DISTINCT we.id) AS exercise_count, COUNT(s.id) AS set_count, COALESCE(SUM(s.weight * s.reps), 0) AS total_volume FROM workouts w LEFT JOIN workout_exercises we ON we.workout_id = w.id LEFT JOIN sets s ON s.workout_exercise_id = we.id GROUP BY w.id ORDER BY w.created_at DESC, w.id DESC`);
+}
+export async function getMonthProgress(db: SQLiteDatabase, year: number, month: number): Promise<MonthProgress> {
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+  const [summary, days, muscles] = await Promise.all([
+    db.getFirstAsync<{ workout_count: number; set_count: number; total_volume: number }>(`SELECT COUNT(DISTINCT w.id) AS workout_count, COUNT(s.id) AS set_count, COALESCE(SUM(s.weight*s.reps),0) AS total_volume FROM workouts w LEFT JOIN workout_exercises we ON we.workout_id=w.id LEFT JOIN sets s ON s.workout_exercise_id=we.id WHERE w.performed_at>=? AND w.performed_at<?`, start, nextMonth),
+    db.getAllAsync<{ date: string; count: number }>(`SELECT substr(performed_at,1,10) AS date, COUNT(*) AS count FROM workouts WHERE performed_at>=? AND performed_at<? GROUP BY substr(performed_at,1,10)`, start, nextMonth),
+    db.getAllAsync<MuscleWorkload>(`WITH monthly_sets AS (SELECT we.exercise_id,COUNT(s.id) AS set_count FROM workouts w JOIN workout_exercises we ON we.workout_id=w.id JOIN sets s ON s.workout_exercise_id=we.id WHERE w.performed_at>=? AND w.performed_at<? GROUP BY we.exercise_id) SELECT m.key,m.name,COALESCE(SUM(CASE WHEN ms.set_count IS NULL THEN 0 WHEN em.role='primary' THEN ms.set_count ELSE ms.set_count*0.5 END),0) AS set_equivalents FROM muscle_groups m LEFT JOIN exercise_muscles em ON em.muscle_id=m.id LEFT JOIN monthly_sets ms ON ms.exercise_id=em.exercise_id GROUP BY m.id,m.key,m.name ORDER BY m.id`, start, nextMonth),
+  ]);
+  return { workout_count: summary?.workout_count ?? 0, set_count: summary?.set_count ?? 0, total_volume: summary?.total_volume ?? 0, workout_days: Object.fromEntries(days.map(({ date, count }) => [date, count])), muscles };
+}
+export async function getEarliestWorkoutMonth(db: SQLiteDatabase): Promise<string | null> {
+  const result = await db.getFirstAsync<{ month: string | null }>(`SELECT MIN(substr(performed_at,1,7)) AS month FROM workouts`);
+  return result?.month ?? null;
+}
+export async function getWorkoutsForDate(db: SQLiteDatabase, date: string): Promise<WorkoutSummary[]> {
+  return db.getAllAsync<WorkoutSummary>(`SELECT w.id,w.name,w.performed_at,w.note,COUNT(DISTINCT we.id) AS exercise_count,COUNT(s.id) AS set_count,COALESCE(SUM(s.weight*s.reps),0) AS total_volume FROM workouts w LEFT JOIN workout_exercises we ON we.workout_id=w.id LEFT JOIN sets s ON s.workout_exercise_id=we.id WHERE substr(w.performed_at,1,10)=? GROUP BY w.id ORDER BY w.created_at,w.id`, date);
 }
 export async function getWorkout(db: SQLiteDatabase, id: number): Promise<WorkoutDetail | null> {
   const workout = await db.getFirstAsync<Omit<WorkoutDetail, 'exercises'>>('SELECT id, name, performed_at, note FROM workouts WHERE id = ?', id);
